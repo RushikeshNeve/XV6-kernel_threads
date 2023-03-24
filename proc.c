@@ -499,8 +499,48 @@ kill(int pid)
 int
 clone(int (*fn)(void *), void *stack, int flags, void *arg)
 {
-  cprintf("inside clone");
-  return 5;
+  int i, pid;
+  struct proc *np;
+  struct proc *curproc = myproc();
+
+  // Allocate process.
+  if((np = allocproc()) == 0){//cloneret likhna hai 
+    return -1;
+  }
+
+  // Copy process state from proc.
+  if((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0){//here also
+    kfree(np->kstack);
+    np->kstack = 0;
+    np->state = UNUSED;
+    return -1;
+  }
+  np->sz = curproc->sz;
+  np->parent = curproc;
+  *np->tf = *curproc->tf;
+
+  // Clear %eax so that fork returns 0 in the child.
+  np->tf->eax = 0;
+
+  for(i = 0; i < NOFILE; i++)
+    if(curproc->ofile[i])
+      np->ofile[i] = filedup(curproc->ofile[i]);
+  np->cwd = idup(curproc->cwd);
+
+  safestrcpy(np->name, curproc->name, sizeof(curproc->name));
+
+  pid = np->pid;
+
+  acquire(&ptable.lock);
+
+  np->state = RUNNABLE;
+  int func = fn(arg);
+  cprintf("sahil\n");
+  cprintf("%d\n",func);
+
+  release(&ptable.lock);
+
+  return pid;
 }
 
 //PAGEBREAK: 36
