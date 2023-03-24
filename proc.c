@@ -496,6 +496,13 @@ kill(int pid)
   return -1;
 }
 
+int
+clone(int (*fn)(void *), void *stack, int flags, void *arg)
+{
+  cprintf("inside clone");
+  return 5;
+}
+
 //PAGEBREAK: 36
 // Print a process listing to console.  For debugging.
 // Runs when user types ^P on console.
