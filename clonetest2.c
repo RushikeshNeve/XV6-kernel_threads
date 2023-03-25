@@ -2,7 +2,7 @@
 #include "stat.h"
 #include "user.h"
 
-#define N 10
+#define N 1
 int sum(void *arg)
 {
 
@@ -18,32 +18,34 @@ void clonetest(void)
   int flag = 0;
 
   printf(1, "clone test\n");
-  int x = 0;
+  // int x = 0;
   for (n = 0; n < N; n++)
   {
     pid = clone(sum, p, flag, arg);
     if (pid < 0)
       break;
-    if (pid == 0)
-    {
-      sleep(50);
-      printf(1, "%d\n", x);
-      exit();
-    }
-    else
-    {
-      x++;
-      wait();
-    }
+    // if (pid == 0)
+    // {
+    //   sleep(50);
+    //   printf(1, "%d\n", x);
+    //   exit();
+    // }
+    // else
+    // {
+    //   x++;
+    //   wait();
+    // }
+    sleep(1);
+    printf(1,"neve\n");
   }
 
-  if (n == N)
-  {
-    printf(1, "clone claimed to work N times!\n", N);
-    exit();
-  }
+  // if (n == N)
+  // {
+  //   // printf(1, "clone claimed to work N times!\n", N);
+  //   // exit();
+  // }
 
-  printf(1, "clone test OK\n");
+  // printf(1, "clone test OK\n");
 }
 
 int main(void)

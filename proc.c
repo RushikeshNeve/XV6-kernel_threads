@@ -509,7 +509,7 @@ clone(int (*fn)(void *), void *stack, int flags, void *arg)
   }
 
   // Copy process state from proc.
-  if((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0){//here also
+  if((np->pgdir = linkuvm(curproc->pgdir, curproc->sz)) == 0){//here also
     kfree(np->kstack);
     np->kstack = 0;
     np->state = UNUSED;
@@ -534,9 +534,9 @@ clone(int (*fn)(void *), void *stack, int flags, void *arg)
   acquire(&ptable.lock);
 
   np->state = RUNNABLE;
-  int func = fn(arg);
-  cprintf("sahil\n");
-  cprintf("%d\n",func);
+  fn(arg);
+  // cprintf("sahil\n");
+  // cprintf("%d\n",func);
 
   release(&ptable.lock);
 
