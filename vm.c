@@ -344,37 +344,6 @@ bad:
   return 0;
 }
 
-
-
-pde_t*
-linkuvm(pde_t *pgdir, uint sz)
-{
-  pde_t *d;    // New kernel page directory for child thread
-  pte_t *pte;  // Parent process page table entry
-  pte_t *pte_clone; // Child thread page table entry
-  uint i;
-
-  // Allocate a new kernel page directory for child thread
-  if((d = setupkvm()) == 0)
-    return 0;
-
-  // Copy the parent process page table entries to child thread page table
-  for(i = 0; i < sz; i += PGSIZE){
-    // Get the parent process page table entry for virtual address i
-    if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
-      panic("linkuvm: pte should exist in parent process");
-
-    // Get the child thread page table entry for virtual address i
-    if((pte_clone = walkpgdir(d, (void *) i, 1)) == 0)
-      panic("linkuvm: pte_clone should exist in child thread");
-
-    // Copy the parent process page table entry to child thread page table
-    *pte_clone = *pte;
-  }
-
-  // Return the new kernel page directory for child thread
-  return d;
-}
 //PAGEBREAK!
 // Map user virtual address to kernel address.
 char*

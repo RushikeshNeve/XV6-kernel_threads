@@ -504,20 +504,22 @@ clone(int (*fn)(void *), void *stack, int flags, void *arg)
   struct proc *curproc = myproc();
 
   // Allocate process.
-  if((np = allocproc()) == 0){//cloneret likhna hai 
+  if((np = allocproc()) == 0){
     return -1;
   }
 
-  // Copy process state from proc.
-  if((np->pgdir = linkuvm(curproc->pgdir, curproc->sz)) == 0){//here also
-    kfree(np->kstack);
-    np->kstack = 0;
-    np->state = UNUSED;
-    return -1;
-  }
+  np->pgdir  = curproc->pgdir;
   np->sz = curproc->sz;
   np->parent = curproc;
   *np->tf = *curproc->tf;
+
+  //Set up new  user stack for thread
+  stack -= sizeof(uint);
+  *(uint*)stack = (uint)exit;
+  stack  -= sizeof(uint);
+  *(uint*)stack = (uint)arg;
+  np->tf->esp = (uint)stack;
+  np->tf->eip = (uint)fn;
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
@@ -534,9 +536,6 @@ clone(int (*fn)(void *), void *stack, int flags, void *arg)
   acquire(&ptable.lock);
 
   np->state = RUNNABLE;
-  fn(arg);
-  // cprintf("sahil\n");
-  // cprintf("%d\n",func);
 
   release(&ptable.lock);
 

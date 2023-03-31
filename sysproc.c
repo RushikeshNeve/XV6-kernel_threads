@@ -96,10 +96,10 @@ int sys_clone(void)
   void *stack, *args;
   int (*fn)(void *);
 
-  if (argptr(0, (void*)&fn, sizeof(int*)) < 0 ||
-      argptr(1, (void*)&stack, sizeof(void*)) < 0 ||
+  if (argptr(0, (char**)&fn, 0) < 0 ||
+      argint(1,(int *)&stack) < 0 ||
       argint(2, &flags) < 0 ||
-      argptr(3, (void*)&args, sizeof(void*)) < 0)
+      argptr(3, (char**)&args, 0) < 0)
   {
      return -1;
   }

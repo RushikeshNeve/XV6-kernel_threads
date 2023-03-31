@@ -1,24 +1,17 @@
 #include "types.h"
 #include "stat.h"
 #include "user.h"
-// #include "defs.h"
-
-int sum(void *arg)
-{
-  printf(1,"cat: write error");
-  int x=50;
-  int y=11;
-  return x+y;
+int demo(void* args) {
+    printf(1,"Clone worked!!!\n");
+    return 9;
 }
 
-int
-main()
-{ 
-  void *p=0,*arg=0;
-  int flag=0;
-  // printf(1,"sahil\n");
-  clone(sum,p,flag,arg);
-  // printf(1,"neve\n");
-  exit();
+int main(int argc, char* argv[]) {
+    int arg = 1;
+    char *p = sbrk(4096);
+    p += 4096;
+    int tid = clone(demo, (void*)p, 0, &arg);
+    printf(1,"TID - %d\n",tid);
+    printf(1,"parent about to exit\n");
+    exit();
 }
-
