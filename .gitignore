@@ -5,6 +5,9 @@ _*
 *.asm
 *.sym
 *.img
+*.out
+tags
+.vscode
 vectors.S
 bootblock
 entryother
