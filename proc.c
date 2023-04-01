@@ -515,9 +515,9 @@ clone(int (*fn)(void *), void *stack, int flags, void *arg)
 
   //Set up new  user stack for thread
   stack -= sizeof(uint);
-  *(uint*)stack = (uint)arg;
-  stack  -= sizeof(uint);
   *(uint*)stack = (uint)exit;
+  stack  -= sizeof(uint);
+  *(uint*)stack = (uint)arg;
   np->tf->esp = (uint)stack;
   np->tf->eip = (uint)fn;
 
