@@ -1,4 +1,5 @@
 #include "types.h"
+#include "clonecntl.h"
 #include "defs.h"
 #include "param.h"
 #include "memlayout.h"
@@ -510,20 +511,26 @@ clone(int (*fn)(void *), void *stack, int flags, void *arg)
 
   np->pgdir  = curproc->pgdir;
   np->sz = curproc->sz;
-  np->parent = curproc;
   *np->tf = *curproc->tf;
 
   //Set up new  user stack for thread
-  stack -= sizeof(uint);
-  *(uint*)stack = (uint)exit;
-  stack  -= sizeof(uint);
+  stack -= 4;
   *(uint*)stack = (uint)arg;
+  stack  -= 4;
+  *(uint*)stack = (uint)exit;
   np->tf->esp = (uint)stack;
   np->tf->eip = (uint)fn;
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
 
+  if((flags & CLONE_PARENT)>0){
+    cprintf("%d\n",flags);
+    np->parent = curproc->parent;
+  }
+  else{
+    np->parent = curproc;
+  }
   for(i = 0; i < NOFILE; i++)
     if(curproc->ofile[i])
       np->ofile[i] = filedup(curproc->ofile[i]);

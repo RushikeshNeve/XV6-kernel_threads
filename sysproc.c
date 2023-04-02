@@ -106,3 +106,9 @@ int sys_clone(void)
 
   return clone(fn, stack, flags, args);
 }
+
+// Get parent process ID
+int sys_getppid(void)
+{
+  return myproc()->parent->pid;
+}
