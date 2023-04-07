@@ -112,3 +112,12 @@ int sys_getppid(void)
 {
   return myproc()->parent->pid;
 }
+
+int sys_join(void){
+  int pid;
+
+  if(argint(0,&pid)<0){
+    return -1;
+  }
+  return join(pid);
+}

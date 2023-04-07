@@ -6,11 +6,8 @@
 
 int func_args(void *args)
 {
-    printf(1, "Clone worked!!!\n");
     int *var = args;
-    printf(1, "Variable value child before: %d\n", *var);
     (*var)++;
-    printf(1, "Variable value child after: %d\n", *var);
     return 0;
 }
 
@@ -29,24 +26,25 @@ int func_files(void *arg)
 
 int func_parent(void *arg)
 {
-
-    printf(1, "Child process with PID %d\n", getpid());
-    printf(1, "Parent process of child with PID %d is %d\n", getpid(), getppid());
-    return 0;
+    int *parent_pid = arg;
+    *parent_pid = getpid();
+    return 0 ;
 }
 
 void test_Args()
 {
     int var = 1000;
+    int x = var;
     char *p = malloc(4096);
     p += 4096;
-    printf(1, "Variable value parent before: %d\n", var);
-    sleep(2);
     int tid = clone(func_args, (void *)p, 0, &var);
-    sleep(5);
-    printf(1, "Variable value parent after: %d\n", var);
-    printf(1, "TID - %d\n", tid);
-    printf(1, "parent about to exit\n");
+    join(tid);
+    if(x+1 == var){
+        printf(1,"Arguments Done\n");
+    }
+    else{
+        printf(1,"Arguments Failed\n");
+    }
     return;
 }
 
@@ -72,10 +70,15 @@ void test_Parent()
 {
     char *stack = malloc(4096);
     int clone_flags = CLONE_PARENT;
-    clone(func_parent, stack + 4096, clone_flags, 0);
-    sleep(5);
-    printf(1, "Parent process with PID %d\n", getpid());
-    printf(1, "Parent process exiting with PID & parent PID %d %d\n", getpid(), getppid());
+    int thread_parent_pid = 0;
+    int tid = clone(func_parent, stack + 4096, clone_flags,&thread_parent_pid);
+    join(tid);
+    if(thread_parent_pid == getpid()){
+        printf(1,"CLONE_PARENT Done\n");
+    }
+    else {
+        printf(1,"CLONE_PARENT Failed\n");
+    }
     return;
 }
 

@@ -312,6 +312,43 @@ wait(void)
   }
 }
 
+int
+join(int pid){
+
+  struct proc *p;
+  struct proc *currproc = myproc();
+
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->pid == pid && p->parent == myproc() ){
+      release(&ptable.lock);
+      break;
+    }
+  }
+  if(!p || p->parent != currproc){
+    release(&ptable.lock);
+    return -1;
+  }
+
+  acquire(&ptable.lock);
+  while(p->state != ZOMBIE)
+    sleep(currproc,&ptable.lock);
+
+  p->state =UNUSED;
+  p->pid = 0;
+  p->parent = 0;
+  p->killed = 0;
+  kfree(p->kstack);
+  p->kstack=0;
+  p->pgdir = 0;
+  p->tf = 0;
+  p->context = 0;
+  p->cwd = 0;
+  p->name[0] = 0;
+  release(&ptable.lock);
+  return pid;
+}
+
 //PAGEBREAK: 42
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
@@ -516,7 +553,7 @@ clone(int (*fn)(void *), void *stack, int flags, void *arg)
   //Set up new  user stack for thread
   stack -= 4;
   *(uint*)stack = (uint)arg;
-  stack  -= 4;
+  stack -= 4;
   *(uint*)stack = (uint)exit;
   np->tf->esp = (uint)stack;
   np->tf->eip = (uint)fn;
@@ -525,7 +562,6 @@ clone(int (*fn)(void *), void *stack, int flags, void *arg)
   np->tf->eax = 0;
 
   if((flags & CLONE_PARENT)>0){
-    cprintf("%d\n",flags);
     np->parent = curproc->parent;
   }
   else{
