@@ -11,24 +11,33 @@ int func_args(void *args)
     return 0;
 }
 
-int y;
 int func_files(void *arg)
 {
-    int y = open("a.txt", O_CREATE | O_RDONLY);
-    if (y == -1)
-    {
-        return 1;
-    }
-    printf(1, "Child process ID: %d\n", getpid());
-    printf(1, "File descriptor: %d\n", y);
+    int *fd = (int *) arg;
+    char *child_buf;
+    child_buf = "Modified by child!\n";
+    write(*fd, child_buf, strlen(child_buf));
     return 0;
 }
 
-int func_parent(void *arg)
-{
-    int *parent_pid = arg;
-    *parent_pid = getpid();
-    return 0 ;
+int func_fs(void *arg) {
+    int *inoChild = (int *)arg;
+    if (mkdir("tmp") < 0) {
+        printf(1, "mkdir failed\n");
+        return -1;
+    }
+    if (chdir("tmp") < 0) {
+        printf(1, "chdir failed\n");
+        return -1;
+    }
+    struct stat st;
+    if (stat(".", &st) < 0) {
+        printf(1, "stat failed\n");
+        return -1;
+    }
+    (*inoChild) = st.ino;
+    printf(1, "Child inode: %d\n", (*inoChild));
+    return 0;
 }
 
 void test_Args()
@@ -40,10 +49,10 @@ void test_Args()
     int tid = clone(func_args, (void *)p, 0, &var);
     join(tid);
     if(x+1 == var){
-        printf(1,"Arguments Done\n");
+        printf(1,"arguments test passed !!\n");
     }
     else{
-        printf(1,"Arguments Failed\n");
+        printf(1,"arguments test failed !!\n");
     }
     return;
 }
@@ -52,43 +61,56 @@ void test_Files()
 {
     char *stack;
     int pid;
+    char buf[256];
     stack = malloc(4096);
-    int fd = open("clone_vm.c", O_CREATE | O_WRONLY);
-    sleep(2);
-    pid = clone(func_files, stack + 4096, CLONE_FILES, 0);
+    int fd = open("test.txt", O_CREATE | O_WRONLY);
+    pid = clone(func_files, stack + 4096, CLONE_FILES, &fd);
     if (pid == -1)
     {
         return;
     }
-    sleep(2);
-    printf(1, "Parent process ID: %d\n", getpid());
-    printf(1, "File descriptor: %d\n", fd);
+    join(pid);
+    int fd2 = open("test.txt", O_CREATE | O_RDONLY);
+    read(fd2, buf, 256);
+    if(strcmp(buf,"Modified by child!\n") == 0){
+      printf(1,"clone_files test passed !!\n");
+    }else{
+      printf(1,"clone_files test failed !!\n");
+    }
     return;
 }
 
-void test_Parent()
-{
-    char *stack = malloc(4096);
-    int clone_flags = CLONE_PARENT;
-    int thread_parent_pid = 0;
-    int tid = clone(func_parent, stack + 4096, clone_flags,&thread_parent_pid);
-    join(tid);
-    if(thread_parent_pid == getpid()){
-        printf(1,"CLONE_PARENT Done\n");
+void test_FS() {
+    char *stack;
+    int pid;
+    stack = malloc(4096);
+    int inoChild = 0;
+    pid = clone(func_fs, stack + 4096,CLONE_FS,&inoChild);
+    if (pid == -1) {
+        printf(1, "clone failed\n");
+        return;
     }
-    else {
-        printf(1,"CLONE_PARENT Failed\n");
+    join(pid);
+    struct stat  st2;
+    if (stat(".", &st2) < 0) {
+        printf(1, "stat failed\n");
+        return;
     }
-    return;
+    printf(1, "Parent inode: %d\n", st2.ino);
+    if (inoChild == st2.ino ) {
+        printf(1, "clone_fs test passed !!\n");
+    } else {
+        printf(1, "clone_fs test failed !!\n");
+    }
 }
 
 int main()
 {
     printf(1, "Testing for Arguments\n");
     test_Args();
-    printf(1, "Testing for files CLONE_FILES\n");
+    printf(1, "Testing for CLONE_FILES\n");
     test_Files();
-    printf(1, "Testing for parent CLONE_PARENT\n");
-    test_Parent();
+    printf(1, "Testing for CLONE_FS\n");
+    test_FS();
     exit();
 }

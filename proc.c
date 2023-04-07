@@ -7,6 +7,9 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "sleeplock.h"
+#include "fs.h"
+#include "file.h"
 
 struct {
   struct spinlock lock;
@@ -567,11 +570,34 @@ clone(int (*fn)(void *), void *stack, int flags, void *arg)
   else{
     np->parent = curproc;
   }
-  for(i = 0; i < NOFILE; i++)
-    if(curproc->ofile[i])
-      np->ofile[i] = filedup(curproc->ofile[i]);
-  np->cwd = idup(curproc->cwd);
 
+  if(flags & CLONE_FILES){
+    for(i = 0; i < NOFILE; i++){
+      if(curproc->ofile[i])
+        np->ofile[i] = filedup(curproc->ofile[i]);
+    }
+  }
+  else{
+    for(i = 0; i < NOFILE; i++){
+      if(i==0 || i==1 || i==2 ){
+        np->ofile[i] = filedup(curproc->ofile[i]);
+        continue;
+      }
+      np->ofile[i]->type = FD_NONE;
+      np->ofile[i]->ref = 0;
+      np->ofile[i]->off = 0;
+      np->ofile[i]->readable = 0;
+      np->ofile[i]->writable = 0;
+      np->ofile[i]->ip = 0;
+    }
+  }
+
+  if(flags & CLONE_FS){
+    np->cwd = idup(curproc->cwd);
+  }
+  else{
+     np->cwd = curproc->cwd ;
+  }
   safestrcpy(np->name, curproc->name, sizeof(curproc->name));
 
   pid = np->pid;
