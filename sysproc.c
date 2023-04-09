@@ -39,7 +39,7 @@ sys_kill(void)
 int
 sys_getpid(void)
 {
-  return myproc()->pid;
+  return myproc()->tgid;
 }
 
 int
@@ -110,7 +110,7 @@ int sys_clone(void)
 // Get parent process ID
 int sys_getppid(void)
 {
-  return myproc()->parent->pid;
+  return myproc()->parent->tgid;
 }
 
 int sys_join(void){
@@ -120,4 +120,9 @@ int sys_join(void){
     return -1;
   }
   return join(pid);
+}
+
+int sys_gettid(void)
+{
+  return myproc()->pid;
 }

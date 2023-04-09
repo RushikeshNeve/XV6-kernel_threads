@@ -215,6 +215,7 @@ fork(void)
   safestrcpy(np->name, curproc->name, sizeof(curproc->name));
 
   pid = np->pid;
+  np->tgid = np->pid;
 
   acquire(&ptable.lock);
 
@@ -564,7 +565,7 @@ clone(int (*fn)(void *), void *stack, int flags, void *arg)
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
 
-  if((flags & CLONE_PARENT)>0){
+  if((flags & CLONE_PARENT)){
     np->parent = curproc->parent;
   }
   else{
@@ -579,16 +580,16 @@ clone(int (*fn)(void *), void *stack, int flags, void *arg)
   }
   else{
     for(i = 0; i < NOFILE; i++){
-      if(i==0 || i==1 || i==2 ){
-        np->ofile[i] = filedup(curproc->ofile[i]);
-        continue;
-      }
-      np->ofile[i]->type = FD_NONE;
-      np->ofile[i]->ref = 0;
+      if(curproc->ofile[i]){
+      np->ofile[i] = filealloc();
+      np->ofile[i]->type = curproc->ofile[i]->type;
+      np->ofile[i]->ref = curproc->ofile[i]->ref;
       np->ofile[i]->off = 0;
-      np->ofile[i]->readable = 0;
-      np->ofile[i]->writable = 0;
-      np->ofile[i]->ip = 0;
+      np->ofile[i]->readable = curproc->ofile[i]->readable;
+      np->ofile[i]->writable = curproc->ofile[i]->writable;
+      np->ofile[i]->pipe = curproc->ofile[i]->pipe;
+      np->ofile[i]->ip = idup(curproc->ofile[i]->ip);
+      }
     }
   }
 
@@ -601,6 +602,13 @@ clone(int (*fn)(void *), void *stack, int flags, void *arg)
   safestrcpy(np->name, curproc->name, sizeof(curproc->name));
 
   pid = np->pid;
+
+  if(flags & CLONE_THREAD){
+    np->tgid = curproc->tgid;
+  }
+  else{
+    np->tgid = np->pid;
+  }
 
   acquire(&ptable.lock);
 

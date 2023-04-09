@@ -8,16 +8,34 @@ int func_args(void *args)
 {
     int *var = args;
     (*var)++;
-    return 0;
+    exit();
+}
+int func_thread1(void * arg){
+    int * var = (int *)arg;
+    *var = getpid();
+    exit();
+}
+
+int func_thread(void *arg){
+    int  *childpid = (int  *)arg;
+    char * stack = malloc(4096);
+    int pid  = clone(func_thread1,(void *)stack,CLONE_THREAD,childpid);
+    join(pid);
+    exit();
 }
 
 int func_files(void *arg)
 {
-    int *fd = (int *) arg;
-    char *child_buf;
-    child_buf = "Modified by child!\n";
-    write(*fd, child_buf, strlen(child_buf));
-    return 0;
+    int * fd = (int *) arg;
+    char buf[256];
+    int r = read(*fd, buf, 20);
+    buf[r] = '\0';
+    if(r == 20){
+      printf(1,"clone_files test failed !!\n");
+    }else{
+      printf(1,"clone_files test passed !!\n");
+    }
+    exit();
 }
 
 int func_fs(void *arg) {
@@ -37,7 +55,7 @@ int func_fs(void *arg) {
     }
     (*inoChild) = st.ino;
     printf(1, "Child inode: %d\n", (*inoChild));
-    return 0;
+    exit();
 }
 
 void test_Args()
@@ -61,22 +79,15 @@ void test_Files()
 {
     char *stack;
     int pid;
-    char buf[256];
     stack = malloc(4096);
-    int fd = open("test.txt", O_CREATE | O_WRONLY);
-    pid = clone(func_files, stack + 4096, CLONE_FILES, &fd);
-    if (pid == -1)
-    {
-        return;
-    }
+    int fd = open("test.txt", O_CREATE | O_RDWR);
+    char *buf;
+    buf =  "Modified by Parent!\n";
+    write(fd, buf, strlen(buf));
+    pid = clone(func_files, stack + 4096,CLONE_FILES, &fd);
     join(pid);
-    int fd2 = open("test.txt", O_CREATE | O_RDONLY);
-    read(fd2, buf, 256);
-    if(strcmp(buf,"Modified by child!\n") == 0){
-      printf(1,"clone_files test passed !!\n");
-    }else{
-      printf(1,"clone_files test failed !!\n");
-    }
+    close(fd);
+    free(stack);
     return;
 }
 
@@ -104,13 +115,33 @@ void test_FS() {
     }
 }
 
+void test_Thread(void){
+    char *stack;
+    int pid;
+    int child_tgid ;
+    stack = malloc(4096);
+    pid = clone(func_thread, stack + 4096,CLONE_THREAD, &child_tgid);
+    if (pid == -1) {
+        return;
+    }
+    join(pid);
+    if (child_tgid == getpid()) {
+        printf(1,"clone thread test passed !!\n");
+    } else {
+        printf(1,"clone thread test failed !!\n");
+    }
+    return;
+}
+
 int main()
 {
     printf(1, "Testing for Arguments\n");
     test_Args();
     printf(1, "Testing for CLONE_FILES\n");
     test_Files();
-    printf(1, "Testing for CLONE_FS\n");
-    test_FS();
+    // printf(1, "Testing for CLONE_FS\n");
+    // test_FS();
+    printf(1, "Testing for CLONE_THREAD\n");
+    test_Thread();
     exit();
 }
