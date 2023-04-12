@@ -31,9 +31,9 @@ int func_files(void *arg)
     int r = read(*fd, buf, 20);
     buf[r] = '\0';
     if(r == 20){
-      printf(1,"clone_files test failed !!\n");
+      printf(1,"Failed!\n");
     }else{
-      printf(1,"clone_files test passed !!\n");
+      printf(1,"Passed!\n");
     }
     exit();
 }
@@ -58,6 +58,12 @@ int func_fs(void *arg) {
     exit();
 }
 
+int func_tkill(void *args)
+{
+    while(1);
+    exit();
+}
+
 void test_Args()
 {
     int var = 1000;
@@ -67,10 +73,10 @@ void test_Args()
     int tid = clone(func_args, (void *)p, 0, &var);
     join(tid);
     if(x+1 == var){
-        printf(1,"arguments test passed !!\n");
+        printf(1,"Passed!\n");
     }
     else{
-        printf(1,"arguments test failed !!\n");
+        printf(1,"Failed!\n");
     }
     return;
 }
@@ -109,9 +115,9 @@ void test_FS() {
     }
     printf(1, "Parent inode: %d\n", st2.ino);
     if (inoChild == st2.ino ) {
-        printf(1, "clone_fs test passed !!\n");
+        printf(1,"Passed!\n");
     } else {
-        printf(1, "clone_fs test failed !!\n");
+        printf(1,"Failed!\n");
     }
 }
 
@@ -126,22 +132,43 @@ void test_Thread(void){
     }
     join(pid);
     if (child_tgid == getpid()) {
-        printf(1,"clone thread test passed !!\n");
+        printf(1,"Passed!\n");
     } else {
-        printf(1,"clone thread test failed !!\n");
+        printf(1,"Failed!\n");
+    }
+    return;
+}
+
+void test_tkill(void){
+    char *stack;
+    int pid;
+    int child_tgid ;
+    stack = malloc(4096);
+    pid = clone(func_tkill, stack + 4096,CLONE_THREAD, &child_tgid);
+    if (pid == -1) {
+        return;
+    }
+    int ret =  tkill(pid);
+    if(ret == 0) {
+        printf(1,"Passed!\n");
+    }
+    else{
+        printf(1,"Failed!\n");
     }
     return;
 }
 
 int main()
 {
-    printf(1, "Testing for Arguments\n");
+    printf(1, "Testing for Arguments: ");
     test_Args();
-    printf(1, "Testing for CLONE_FILES\n");
+    printf(1, "Testing for CLONE_FILES: ");
     test_Files();
-    // printf(1, "Testing for CLONE_FS\n");
+    printf(1, "Testing for tkill: ");
+    test_tkill();
+    // printf(1, "Testing for CLONE_FS: ");
     // test_FS();
-    printf(1, "Testing for CLONE_THREAD\n");
+    printf(1, "Testing for CLONE_THREAD: ");
     test_Thread();
     exit();
 }

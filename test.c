@@ -11,7 +11,6 @@ int f(void *arg) {
 int main() {
 	th_t tid[3];
 	int args[3],k;
-		
 	for(k = 0; k < 3; k++) {
 		args[k] = 10 + k;
 		thread_create(&tid[k], f, &args[k]);

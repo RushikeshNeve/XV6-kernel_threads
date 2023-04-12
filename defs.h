@@ -122,6 +122,8 @@ void            wakeup(void*);
 void            yield(void);
 int             clone(int (*fn)(void *),void*,int,void*);
 int             join(int pid);
+int             tkill(int pid);
+int             tgkill(void);
 
 // swtch.S
 void            swtch(struct context**, struct context*);

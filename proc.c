@@ -329,17 +329,24 @@ join(int pid){
       break;
     }
   }
+  if(p->killed == 1) return -1;
   if(!p || p->parent != currproc){
     release(&ptable.lock);
     return -1;
   }
 
   acquire(&ptable.lock);
-  while(p->state != ZOMBIE)
+  while(p->state != ZOMBIE){
+    if(p->killed == 1) {
+      release(&ptable.lock);
+      return -1;
+    }
     sleep(currproc,&ptable.lock);
+  }
 
   p->state =UNUSED;
   p->pid = 0;
+  p->tgid=0;
   p->parent = 0;
   p->killed = 0;
   kfree(p->kstack);
@@ -536,6 +543,32 @@ kill(int pid)
   }
   release(&ptable.lock);
   return -1;
+}
+
+int
+tkill(int pid){
+  struct proc *currproc=myproc();
+  struct proc *p;
+  if(currproc->tgid == pid)
+    return -1;
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->pid == pid && p->tgid==currproc->tgid && currproc->tgid != pid){
+      p->killed = 1;
+      // Wake process from sleep if necessary.
+      if(p->state == SLEEPING)
+        p->state = RUNNABLE;
+      release(&ptable.lock);
+      return 0;
+    }
+  }
+
+  release(&ptable.lock);
+  return -1;
+}
+
+int tgkill(void){
+  return 0;
 }
 
 int

@@ -27,6 +27,8 @@ int clone(int (*fn)(void *), void *stack, int flags, void *ard);
 int getppid(void);
 int join(int pid);
 int gettid(void);
+int tkill(int);
+int tgkill(void);
 
 // ulib.c
 int stat(const char*, struct stat*);

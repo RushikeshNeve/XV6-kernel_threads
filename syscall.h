@@ -24,3 +24,5 @@
 #define SYS_getppid 23
 #define SYS_join   24
 #define SYS_gettid 25
+#define SYS_tkill  26
+#define SYS_tgkill 27
