@@ -130,6 +130,7 @@ userinit(void)
   p = allocproc();
   
   initproc = p;
+  p->tgid = p->pid;
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
   inituvm(p->pgdir, _binary_initcode_start, (int)_binary_initcode_size);
@@ -296,6 +297,7 @@ wait(void)
         p->kstack = 0;
         freevm(p->pgdir);
         p->pid = 0;
+        p->tgid = 0;
         p->parent = 0;
         p->name[0] = 0;
         p->killed = 0;
@@ -569,6 +571,50 @@ tkill(int pid){
 
 int tgkill(void){
   return 0;
+}
+
+void
+handle_leader(struct proc **currproc){
+  if((*currproc)->tgid == (*currproc)->pid)
+    return;
+  struct proc *p,*parent;
+  int tgid = (*currproc)->tgid;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->pid ==tgid){
+      break;
+    }
+  }
+  acquire(&ptable.lock);
+  parent = p->parent;
+  (*currproc)->tgid = (*currproc)->pid;
+  (*currproc)->parent = parent;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->tgid == tgid){
+      p->tgid = (*currproc)->pid;
+      p->parent = (*currproc);
+      while(p->state != ZOMBIE){
+        if(p->killed == 1) {
+          release(&ptable.lock);
+          break ;
+        }
+        sleep(*currproc,&ptable.lock);
+      }
+      p->state =UNUSED;
+      p->pid = 0;
+      p->tgid=0;
+      p->parent = 0;
+      p->killed = 0;
+      kfree(p->kstack);
+      p->kstack=0;
+      p->pgdir = 0;
+      p->tf = 0;
+      p->context = 0;
+      p->cwd = 0;
+      p->name[0] = 0;
+    }
+  }
+  release(&ptable.lock);
+  return ;
 }
 
 int
