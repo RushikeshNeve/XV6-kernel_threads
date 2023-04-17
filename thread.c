@@ -8,7 +8,7 @@
 th_t thread_create(th_t *tid, int (*fn) (void *), void *arg) {
 	int tid1;
 	char *stack = malloc(4096);
-	tid1 = clone(fn, stack + 4096, CLONE_THREAD, arg);
+	tid1 = clone(fn, stack + 4096, CLONE_THREAD| CLONE_FS, arg);
 	*tid = tid1;
 	return tid1;
 }

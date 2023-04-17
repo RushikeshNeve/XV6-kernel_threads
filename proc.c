@@ -672,12 +672,27 @@ clone(int (*fn)(void *), void *stack, int flags, void *arg)
     }
   }
 
-  if(flags & CLONE_FS){
+  if (flags & CLONE_FS) {
     np->cwd = idup(curproc->cwd);
+
+  } else {
+    begin_op();
+    ilock(curproc->cwd);
+    np->cwd = ialloc(curproc->cwd->dev, curproc->cwd->inum);
+    np->cwd->major = curproc->cwd->major;
+    np->cwd->minor = curproc->cwd->minor;
+    np->cwd->nlink = 1;
+    np->cwd->type = curproc->cwd->type;
+    np->cwd->lock = curproc->cwd->lock;
+    np->cwd->ref = 1;
+    np->cwd->size = curproc->cwd->size;
+    np->cwd->valid = curproc->cwd->valid;
+    memmove(np->cwd->addrs, curproc->cwd->addrs, sizeof(curproc->cwd->addrs));
+    iunlock(curproc->cwd);
+    iput(curproc->cwd);
+    end_op();
   }
-  else{
-     np->cwd = curproc->cwd ;
-  }
+
   safestrcpy(np->name, curproc->name, sizeof(curproc->name));
 
   pid = np->pid;
