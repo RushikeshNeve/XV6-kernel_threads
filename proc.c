@@ -617,19 +617,41 @@ handle_leader(struct proc **currproc){
   return ;
 }
 
+struct proc*
+getThreadLeader(){
+  struct proc* currproc = myproc(),*p;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->pid == currproc->tgid){
+      return p;
+    }
+  }
+  return 0;
+}
+
 int
 clone(int (*fn)(void *), void *stack, int flags, void *arg)
 {
   int i, pid;
   struct proc *np;
   struct proc *curproc = myproc();
+  struct proc *tgl = getThreadLeader();
 
   // Allocate process.
   if((np = allocproc()) == 0){
     return -1;
   }
 
-  np->pgdir  = curproc->pgdir;
+  if(flags & CLONE_VM){
+    np->pgdir  = curproc->pgdir;
+  }
+  else{
+    if((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0){
+      kfree(np->kstack);
+      np->kstack = 0;
+      np->state = UNUSED;
+      return -1;
+    }
+  }
   np->sz = curproc->sz;
   *np->tf = *curproc->tf;
 
@@ -645,10 +667,10 @@ clone(int (*fn)(void *), void *stack, int flags, void *arg)
   np->tf->eax = 0;
 
   if((flags & CLONE_PARENT)){
-    np->parent = curproc->parent;
+    np->parent = tgl->parent;
   }
   else{
-    np->parent = curproc;
+    np->parent = tgl;
   }
 
   if(flags & CLONE_FILES){
@@ -673,24 +695,9 @@ clone(int (*fn)(void *), void *stack, int flags, void *arg)
   }
 
   if (flags & CLONE_FS) {
+  }
+  else {
     np->cwd = idup(curproc->cwd);
-
-  } else {
-    begin_op();
-    ilock(curproc->cwd);
-    np->cwd = ialloc(curproc->cwd->dev, curproc->cwd->inum);
-    np->cwd->major = curproc->cwd->major;
-    np->cwd->minor = curproc->cwd->minor;
-    np->cwd->nlink = 1;
-    np->cwd->type = curproc->cwd->type;
-    np->cwd->lock = curproc->cwd->lock;
-    np->cwd->ref = 1;
-    np->cwd->size = curproc->cwd->size;
-    np->cwd->valid = curproc->cwd->valid;
-    memmove(np->cwd->addrs, curproc->cwd->addrs, sizeof(curproc->cwd->addrs));
-    iunlock(curproc->cwd);
-    iput(curproc->cwd);
-    end_op();
   }
 
   safestrcpy(np->name, curproc->name, sizeof(curproc->name));

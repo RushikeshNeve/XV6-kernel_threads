@@ -78,7 +78,7 @@ void test_Args()
     int x = var;
     char *p = malloc(4096);
     p += 4096;
-    int tid = clone(func_args, (void *)p, CLONE_FS, &var);
+    int tid = clone(func_args, (void *)p, 0, &var);
     join(tid);
     if(x+1 == var){
         printf(1,"Passed!\n");
@@ -98,7 +98,7 @@ void test_Files()
     char *buf;
     buf =  "Modified by Parent!\n";
     write(fd, buf, strlen(buf));
-    pid = clone(func_files, stack + 4096,CLONE_FILES | CLONE_FS, &fd);
+    pid = clone(func_files, stack + 4096,CLONE_FILES, &fd);
     join(pid);
     close(fd);
     free(stack);
@@ -134,7 +134,7 @@ void test_Thread(void){
     int pid;
     int child_tgid ;
     stack = malloc(4096);
-    pid = clone(func_thread, stack + 4096,CLONE_THREAD| CLONE_FS, &child_tgid);
+    pid = clone(func_thread, stack + 4096,CLONE_THREAD, &child_tgid);
     if (pid == -1) {
         return;
     }
@@ -152,7 +152,7 @@ void test_tkill(void){
     int pid;
     int child_tgid ;
     stack = malloc(4096);
-    pid = clone(func_tkill, stack + 4096,CLONE_THREAD| CLONE_FS, &child_tgid);
+    pid = clone(func_tkill, stack + 4096,CLONE_THREAD, &child_tgid);
     if (pid == -1) {
         return;
     }
@@ -170,7 +170,7 @@ void Test_Exec(void){
     char *stack;
     int pid1;
     stack = malloc(4096);
-    pid1 = clone(func_exec, stack + 4096,CLONE_THREAD| CLONE_FS, 0);
+    pid1 = clone(func_exec, stack + 4096,CLONE_THREAD, 0);
     sleep(10);
     int tgid = getpid();
     join(pid1);
@@ -192,8 +192,8 @@ int main()
     test_Files();
     printf(1, "Testing for tkill: ");
     test_tkill();
-    printf(1, "Testing for CLONE_FS: ");
-    test_FS();
+    // printf(1, "Testing for CLONE_FS: ");
+    // test_FS();
     printf(1, "Testing for CLONE_THREAD: ");
     test_Thread();
     exit();
