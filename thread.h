@@ -1,4 +1,12 @@
-typedef int th_t;
-int thread_create(th_t *tid, int (*fn) (void *), void *arg);
-int thread_join(th_t tid);
-int thread_kill(th_t tid);
+typedef struct RSThread{
+  struct RSThread *next;
+  void *arg;
+  char *stack;
+  int kernel_tid;
+}RSThread;
+
+RSThread *Head;
+
+int thread_create(int (*fn) (void *), void *arg);
+int thread_join(int tid);
+int thread_exit(int tid);

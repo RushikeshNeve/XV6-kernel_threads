@@ -131,6 +131,7 @@ userinit(void)
   
   initproc = p;
   p->tgid = p->pid;
+  p->flags = 0;
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
   inituvm(p->pgdir, _binary_initcode_start, (int)_binary_initcode_size);
@@ -202,6 +203,7 @@ fork(void)
     return -1;
   }
   np->sz = curproc->sz;
+  np->flags = CLONE_FILES;
   np->parent = curproc;
   *np->tf = *curproc->tf;
 
@@ -268,25 +270,32 @@ exit(void)
   if(leader == curproc){
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->tgid == leader->pid && p!=leader){
-          p->state =UNUSED;
-          p->pid = 0;
-          p->tgid=0;
-          p->parent = 0;
-          p->killed = 0;
-          kfree(p->kstack);
-          p->kstack=0;
+        p->state =UNUSED;
+        p->pid = 0;
+        p->tgid=0;
+        p->parent = 0;
+        p->killed = 0;
+        kfree(p->kstack);
+        if(p->flags & CLONE_VM){
           p->pgdir = 0;
-          p->tf = 0;
-          p->context = 0;
-          p->cwd = 0;
-          p->name[0] = 0;
-          for(fd = 0; fd < NOFILE; fd++){
-            if(p->ofile[fd]){
-              fileclose(p->ofile[fd]);
-              p->ofile[fd] = 0;
-            }
+        }
+        else{
+          freevm(p->pgdir);
+          p->pgdir =0;
+        }
+        p->kstack=0;
+        p->pgdir = 0;
+        p->tf = 0;
+        p->context = 0;
+        p->cwd = 0;
+        p->name[0] = 0;
+        for(fd = 0; fd < NOFILE; fd++){
+          if(p->ofile[fd]){
+            fileclose(p->ofile[fd]);
+            p->ofile[fd] = 0;
           }
-          // release(&ptable.lock);
+        }
+        p->flags = 0;
       }
     }
   }
@@ -331,13 +340,20 @@ wait(void)
         pid = p->pid;
         kfree(p->kstack);
         p->kstack = 0;
-        freevm(p->pgdir);
+        if(p->flags & CLONE_VM){
+          p->pgdir = 0;
+        }
+        else{
+          freevm(p->pgdir);
+          p->pgdir =0;
+        }
         p->pid = 0;
         p->tgid = 0;
         p->parent = 0;
         p->name[0] = 0;
         p->killed = 0;
         p->state = UNUSED;
+        p->flags = 0;
         release(&ptable.lock);
         return pid;
       }
@@ -389,11 +405,18 @@ join(int pid){
   p->killed = 0;
   kfree(p->kstack);
   p->kstack=0;
-  p->pgdir = 0;
+  if(p->flags & CLONE_VM){
+    p->pgdir =0;
+  }
+  else{
+    freevm(p->pgdir);
+    p->pgdir =0;
+  }
   p->tf = 0;
   p->context = 0;
   p->cwd = 0;
   p->name[0] = 0;
+  p->flags = 0;
   release(&ptable.lock);
   return pid;
 }
@@ -635,11 +658,18 @@ handle_leader(struct proc **currproc){
       p->killed = 0;
       kfree(p->kstack);
       p->kstack=0;
-      p->pgdir = 0;
+      if(p->flags & CLONE_VM){
+        p->pgdir =0;
+      }
+      else{
+        freevm(p->pgdir);
+        p->pgdir =0;
+      }
       p->tf = 0;
       p->context = 0;
       p->cwd = 0;
       p->name[0] = 0;
+      p->flags = 0;
     }
   }
   release(&ptable.lock);
@@ -672,6 +702,7 @@ clone(int (*fn)(void *), void *stack, int flags, void *arg)
     }
   }
   np->sz = curproc->sz;
+  np->flags = flags;
   *np->tf = *curproc->tf;
 
   //Set up new  user stack for thread
