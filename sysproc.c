@@ -135,8 +135,3 @@ int sys_tkill(void){
   }
   return tkill(pid);
 }
-
-int sys_tgkill(void)
-{
-  return tgkill();
-}

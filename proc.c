@@ -227,6 +227,17 @@ fork(void)
   return pid;
 }
 
+struct proc*
+getThreadLeader(){
+  struct proc* currproc = myproc(),*p;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->pid == currproc->tgid){
+      return p;
+    }
+  }
+  return 0;
+}
+
 // Exit the current process.  Does not return.
 // An exited process remains in the zombie state
 // until its parent calls wait() to find out it exited.
@@ -234,9 +245,9 @@ void
 exit(void)
 {
   struct proc *curproc = myproc();
-  struct proc *p;
+  struct proc *p,*leader;
   int fd;
-
+  leader = getThreadLeader();
   if(curproc == initproc)
     panic("init exiting");
 
@@ -254,6 +265,31 @@ exit(void)
   curproc->cwd = 0;
 
   acquire(&ptable.lock);
+  if(leader == curproc){
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->tgid == leader->pid && p!=leader){
+          p->state =UNUSED;
+          p->pid = 0;
+          p->tgid=0;
+          p->parent = 0;
+          p->killed = 0;
+          kfree(p->kstack);
+          p->kstack=0;
+          p->pgdir = 0;
+          p->tf = 0;
+          p->context = 0;
+          p->cwd = 0;
+          p->name[0] = 0;
+          for(fd = 0; fd < NOFILE; fd++){
+            if(p->ofile[fd]){
+              fileclose(p->ofile[fd]);
+              p->ofile[fd] = 0;
+            }
+          }
+          // release(&ptable.lock);
+      }
+    }
+  }
 
   // Parent might be sleeping in wait().
   wakeup1(curproc->parent);
@@ -569,30 +605,23 @@ tkill(int pid){
   return -1;
 }
 
-int tgkill(void){
-  return 0;
-}
-
 void
 handle_leader(struct proc **currproc){
   if((*currproc)->tgid == (*currproc)->pid)
     return;
-  struct proc *p,*parent;
+  struct proc *p,*leader,*parent;
   int tgid = (*currproc)->tgid;
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if(p->pid ==tgid){
-      break;
-    }
-  }
+  leader = getThreadLeader();
+  if(leader->pid != tgid) return;
   acquire(&ptable.lock);
-  parent = p->parent;
+  parent = leader->parent;
   (*currproc)->tgid = (*currproc)->pid;
   (*currproc)->parent = parent;
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->tgid == tgid){
       p->tgid = (*currproc)->pid;
       p->parent = (*currproc);
-      while(p->state != ZOMBIE){
+      while(p->state != ZOMBIE && p!=leader){
         if(p->killed == 1) {
           release(&ptable.lock);
           break ;
@@ -617,17 +646,6 @@ handle_leader(struct proc **currproc){
   return ;
 }
 
-struct proc*
-getThreadLeader(){
-  struct proc* currproc = myproc(),*p;
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if(p->pid == currproc->tgid){
-      return p;
-    }
-  }
-  return 0;
-}
-
 int
 clone(int (*fn)(void *), void *stack, int flags, void *arg)
 {
@@ -635,6 +653,7 @@ clone(int (*fn)(void *), void *stack, int flags, void *arg)
   struct proc *np;
   struct proc *curproc = myproc();
   struct proc *tgl = getThreadLeader();
+  uint ustack[2];
 
   // Allocate process.
   if((np = allocproc()) == 0){
@@ -656,10 +675,12 @@ clone(int (*fn)(void *), void *stack, int flags, void *arg)
   *np->tf = *curproc->tf;
 
   //Set up new  user stack for thread
-  stack -= 4;
-  *(uint*)stack = (uint)arg;
-  stack -= 4;
-  *(uint*)stack = (uint)exit;
+  stack -= 8;
+  ustack[0] = (uint)0xffffffff;
+  ustack[1] = (uint)arg;
+  if(copyout(np->pgdir,(uint)stack, ustack,8) < 0){
+    return -1;
+  }
   np->tf->esp = (uint)stack;
   np->tf->eip = (uint)fn;
 

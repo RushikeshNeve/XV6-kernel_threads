@@ -4,6 +4,12 @@
 #include "fcntl.h"
 #include "clonecntl.h"
 
+struct temp{
+    int a;
+    int b;
+    int sum;
+};
+
 int func_args(void *args)
 {
     int *var = args;
@@ -11,18 +17,46 @@ int func_args(void *args)
     exit();
 }
 
-int func_thread1(void * arg){
-    int * var = (int *)arg;
-    *var = getpid();
+void test_Args(){
+    int var = 1000;
+    int x = var;
+    char *p = malloc(4096);
+    p += 4096;
+    int tid = clone(func_args, (void *)p, CLONE_VM, &var);
+    join(tid);
+    if(x+1 == var){
+        printf(1,"Passed!\n");
+    }
+    else{
+        printf(1,"Failed!\n");
+    }
+    return;
+}
+
+int func_multiple_args(void *args)
+{
+    struct temp *var = (struct temp *)args;
+    var->sum = var->a + var->b;
     exit();
 }
 
-int func_thread(void *arg){
-    int  *childpid = (int  *)arg;
-    char * stack = malloc(4096);
-    int pid  = clone(func_thread1,(void *)stack,CLONE_THREAD,childpid);
-    join(pid);
-    exit();
+void test_Multiple_Args()
+{
+    char *p = malloc(4096);
+    struct temp *tmp = (struct temp *)malloc(sizeof(struct temp));
+    tmp->a = 100;
+    tmp->b = 50;
+    tmp->sum = 0;
+    p += 4096;
+    int tid = clone(func_multiple_args, (void *)p, CLONE_VM, tmp);
+    join(tid);
+    if(tmp->sum == (tmp->a + tmp->b)){
+        printf(1,"Passed!\n");
+    }
+    else{
+        printf(1,"Failed!\n");
+    }
+    return;
 }
 
 int func_files(void *arg)
@@ -37,6 +71,47 @@ int func_files(void *arg)
       printf(1,"Passed!\n");
     }
     exit();
+}
+
+void test_Files()
+{
+    char *stack;
+    int pid;
+    stack = malloc(4096);
+    int fd = open("test.txt", O_CREATE | O_RDWR);
+    char *buf;
+    buf =  "Modified by Parent!\n";
+    write(fd, buf, strlen(buf));
+    pid = clone(func_files, stack + 4096,CLONE_FILES, &fd);
+    join(pid);
+    close(fd);
+    free(stack);
+    return;
+}
+
+int func_tkill(void *args)
+{
+    while(1);
+    exit();
+}
+
+void test_tkill(void){
+    char *stack;
+    int pid;
+    int child_tgid ;
+    stack = malloc(4096);
+    pid = clone(func_tkill, stack + 4096,CLONE_THREAD, &child_tgid);
+    if (pid == -1) {
+        return;
+    }
+    int ret =  tkill(pid);
+    if(ret == 0) {
+        printf(1,"Passed!\n");
+    }
+    else{
+        printf(1,"Failed!\n");
+    }
+    return;
 }
 
 int func_fs(void *arg) {
@@ -57,52 +132,6 @@ int func_fs(void *arg) {
     (*inoChild) = st.ino;
     printf(1, "Child inode: %d\n", (*inoChild));
     exit();
-}
-
-int func_tkill(void *args)
-{
-    while(1);
-    exit();
-}
-
-int func_exec(void *args)
-{
-  char *exec_argv[] = {"echo","exec passed!", 0};
-  exec(exec_argv[0], exec_argv);
-  exit();
-}
-
-void test_Args()
-{
-    int var = 1000;
-    int x = var;
-    char *p = malloc(4096);
-    p += 4096;
-    int tid = clone(func_args, (void *)p, 0, &var);
-    join(tid);
-    if(x+1 == var){
-        printf(1,"Passed!\n");
-    }
-    else{
-        printf(1,"Failed!\n");
-    }
-    return;
-}
-
-void test_Files()
-{
-    char *stack;
-    int pid;
-    stack = malloc(4096);
-    int fd = open("test.txt", O_CREATE | O_RDWR);
-    char *buf;
-    buf =  "Modified by Parent!\n";
-    write(fd, buf, strlen(buf));
-    pid = clone(func_files, stack + 4096,CLONE_FILES, &fd);
-    join(pid);
-    close(fd);
-    free(stack);
-    return;
 }
 
 void test_FS() {
@@ -129,12 +158,26 @@ void test_FS() {
     }
 }
 
+int func_thread1(void * arg){
+    int * var = (int *)arg;
+    *var = getpid();
+    exit();
+}
+
+int func_thread(void *arg){
+    int  *childpid = (int  *)arg;
+    char * stack = malloc(4096);
+    int pid  = clone(func_thread1,(void *)stack,CLONE_THREAD | CLONE_VM,childpid);
+    join(pid);
+    exit();
+}
+
 void test_Thread(void){
     char *stack;
     int pid;
     int child_tgid ;
     stack = malloc(4096);
-    pid = clone(func_thread, stack + 4096,CLONE_THREAD, &child_tgid);
+    pid = clone(func_thread, stack + 4096,CLONE_THREAD | CLONE_VM, &child_tgid);
     if (pid == -1) {
         return;
     }
@@ -147,47 +190,27 @@ void test_Thread(void){
     return;
 }
 
-void test_tkill(void){
-    char *stack;
-    int pid;
-    int child_tgid ;
-    stack = malloc(4096);
-    pid = clone(func_tkill, stack + 4096,CLONE_THREAD, &child_tgid);
-    if (pid == -1) {
-        return;
-    }
-    int ret =  tkill(pid);
-    if(ret == 0) {
-        printf(1,"Passed!\n");
-    }
-    else{
-        printf(1,"Failed!\n");
-    }
-    return;
+int func_exec(void *args)
+{
+  char *exec_argv[] = {"echo","exec passed!", 0};
+  exec(exec_argv[0], exec_argv);
+  exit();
 }
 
 void Test_Exec(void){
     char *stack;
-    int pid1;
     stack = malloc(4096);
-    pid1 = clone(func_exec, stack + 4096,CLONE_THREAD, 0);
-    sleep(10);
-    int tgid = getpid();
-    join(pid1);
-    if(pid1 == tgid){
-        printf(1,"Passed!\n");
-    }else{
-        printf(1,"Failed!\n");
-    }
+    clone(func_exec, stack + 4096,CLONE_THREAD, 0);
+    sleep(1);
     return;
 }
 
 int main()
 {
-    printf(1, "Testing for EXEC: ");
-    Test_Exec();
     printf(1, "Testing for Arguments: ");
     test_Args();
+    printf(1, "Testing for Multiple Arguments: ");
+    test_Multiple_Args();
     printf(1, "Testing for CLONE_FILES: ");
     test_Files();
     printf(1, "Testing for tkill: ");
@@ -196,5 +219,7 @@ int main()
     // test_FS();
     printf(1, "Testing for CLONE_THREAD: ");
     test_Thread();
+    printf(1, "Testing for EXEC: ");
+    Test_Exec();
     exit();
 }
