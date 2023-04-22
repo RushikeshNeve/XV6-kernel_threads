@@ -178,7 +178,6 @@ UPROGS=\
 	_rm\
 	_sh\
 	_stressfs\
-	_usertests\
 	_wc\
 	_zombie\
 	_clonetest1\
