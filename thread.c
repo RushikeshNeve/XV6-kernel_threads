@@ -83,8 +83,9 @@ int thread_create(int (*fn) (void *), void *arg) {
 	thread->arg = arg;
 	thread->stack = stack;
 	thread->next = 0;
-	thread->kernel_tid = clone(fn, stack, CLONE_VM | CLONE_THREAD|CLONE_FILES, arg);
+	thread->kernel_tid = clone(fn, stack, CLONE_VM | CLONE_THREAD | CLONE_FILES, arg);
 	insert_ThreadList(thread);
+  sleep(2);
 	return thread->kernel_tid;
 }
 
