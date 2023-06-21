@@ -39,7 +39,7 @@ sys_kill(void)
 int
 sys_getpid(void)
 {
-  return myproc()->pid;
+  return myproc()->tgid;
 }
 
 int
@@ -88,4 +88,50 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+int sys_clone(void)
+{
+  int flags;
+  void *stack, *args;
+  int (*fn)(void *);
+
+  if (argptr(0, (char**)&fn, 0) < 0 ||
+      argint(1,(int *)&stack) < 0 ||
+      argint(2, &flags) < 0 ||
+      argptr(3, (char**)&args, 0) < 0)
+  {
+     return -1;
+  }
+
+  return clone(fn, stack, flags, args);
+}
+
+// Get parent process ID
+int sys_getppid(void)
+{
+  return myproc()->parent->tgid;
+}
+
+int sys_join(void){
+  int pid;
+
+  if(argint(0,&pid)<0){
+    return -1;
+  }
+  return join(pid);
+}
+
+int sys_gettid(void)
+{
+  return myproc()->pid;
+}
+
+int sys_tkill(void){
+  int pid;
+
+  if(argint(0,&pid)<0){
+    return -1;
+  }
+  return tkill(pid);
 }
